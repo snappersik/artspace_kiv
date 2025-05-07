@@ -1,0 +1,17 @@
+{"properties": [
+  {
+    "name": "spring.webmvc.cors.allowed-origins",
+    "type": "java.lang.String",
+    "description": "A description for 'spring.webmvc.cors.allowed-origins'"
+  },
+  {
+    "name": "spring.webmvc.cors.allowed-methods",
+    "type": "java.lang.String",
+    "description": "A description for 'spring.webmvc.cors.allowed-methods'"
+  },
+  {
+    "name": "spring.webmvc.cors.allowed-headers",
+    "type": "java.lang.String",
+    "description": "A description for 'spring.webmvc.cors.allowed-headers'"
+  }
+]}

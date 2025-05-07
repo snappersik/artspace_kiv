@@ -1,0 +1,10 @@
+services:
+  postgres:
+    container_name: artspace
+    image: postgres
+    environment:
+      POSTGRES_DB: "local_db2"
+      POSTGRES_USER: "postgres"
+      POSTGRES_PASSWORD: "12345"
+    ports:
+      - "5442:5432"
