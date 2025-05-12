@@ -8,7 +8,7 @@ import java.util.List;
 public class CustomUserDetails implements UserDetails {
 
     private final Long id;
-    private final String username;
+    private final String login;
     private final String password;
     private final List<GrantedAuthority> authorities;
     private final boolean accountNonExpired;
@@ -16,9 +16,9 @@ public class CustomUserDetails implements UserDetails {
     private final boolean credentialsNonExpired;
     private final boolean enabled;
 
-    public CustomUserDetails(Long id, String username, String password, List<GrantedAuthority> authorities) {
+    public CustomUserDetails(Long id, String login, String password, List<GrantedAuthority> authorities) {
         this.id = id;
-        this.username = username;
+        this.login = login;
         this.password = password;
         this.authorities = authorities;
         this.accountNonExpired = true;
@@ -43,7 +43,7 @@ public class CustomUserDetails implements UserDetails {
 
     @Override
     public String getUsername() {
-        return username;
+        return login;
     }
 
     @Override

@@ -17,7 +17,7 @@ import org.springframework.web.bind.annotation.*;
 
 @RestController
 @Slf4j
-@RequestMapping("/api/exhibitions")
+@RequestMapping("/exhibitions")
 @Tag(name = "Exhibitions", description = "API для работы с выставками")
 public class ExhibitionController extends GenericController<Exhibition, ExhibitionDTO> {
 

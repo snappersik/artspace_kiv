@@ -60,9 +60,7 @@ public abstract class GenericController<E extends GenericModel, D extends Generi
         updateEntity.setId(id);
         return ResponseEntity.status(HttpStatus.ACCEPTED).body(service.update(updateEntity));
     }
-
-    // localhost:8080/authors/delete?id=1 - @RequestParam
-    // localhost: 8080/authors/delete/1 - @PathVariable
+    
     @Operation(description = "Удалить запись", method = "delete")
     @RequestMapping(value = "/delete/{id}", method = RequestMethod.DELETE)
     public void delete(@PathVariable(value = "id") Long id) {

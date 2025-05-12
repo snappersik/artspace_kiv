@@ -10,7 +10,6 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-
 import java.util.List;
 
 @Slf4j
@@ -23,9 +22,9 @@ public class UserService extends GenericService<User, UserDTO> {
     private final PasswordEncoder passwordEncoder;
 
     public UserService(UserRepository userRepository,
-                      RoleRepository roleRepository,
-                      UserMapper userMapper,
-                      PasswordEncoder passwordEncoder) {
+                     RoleRepository roleRepository,
+                     UserMapper userMapper,
+                     PasswordEncoder passwordEncoder) {
         super(userRepository, userMapper);
         this.userRepository = userRepository;
         this.roleRepository = roleRepository;
@@ -36,21 +35,42 @@ public class UserService extends GenericService<User, UserDTO> {
     @Override
     @Transactional
     public UserDTO create(UserDTO dto) {
+        log.info("Создание пользователя с логином: {}", dto.getLogin());
         User user = userMapper.toEntity(dto);
         
         // Шифруем пароль
         if (dto.getPassword() != null) {
-            user.setPassword(passwordEncoder.encode(dto.getPassword()));
+            String encodedPassword = passwordEncoder.encode(dto.getPassword());
+            log.debug("Пароль зашифрован");
+            user.setPassword(encodedPassword);
         }
         
         // Устанавливаем роль
         if (dto.getRoleId() != null) {
+            log.info("Установка роли по ID: {}", dto.getRoleId());
             Role role = roleRepository.findById(dto.getRoleId())
-                    .orElseThrow(() -> new RuntimeException("Role not found with id: " + dto.getRoleId()));
+                    .orElseThrow(() -> {
+                        log.error("Роль не найдена по ID: {}", dto.getRoleId());
+                        return new RuntimeException("Role not found with id: " + dto.getRoleId());
+                    });
             user.setRole(role);
+            log.info("Роль установлена по ID: {}", role.getTitle());
+        } else {
+            // Если роль не указана, устанавливаем роль USER по умолчанию
+            log.info("Роль не указана, устанавливаем USER по умолчанию (ID: 2)");
+            // Предполагаем, что роль USER имеет ID 2
+            Role defaultRole = roleRepository.findById(2L)
+                    .orElseThrow(() -> {
+                        log.error("Роль по умолчанию не найдена по ID: 2");
+                        return new RuntimeException("Default role not found with ID: 2");
+                    });
+            user.setRole(defaultRole);
+            log.info("Роль по умолчанию установлена: {}", defaultRole.getTitle());
         }
         
-        return userMapper.toDTO(userRepository.save(user));
+        User savedUser = userRepository.save(user);
+        log.info("Пользователь создан с ID: {} и ролью: {}", savedUser.getId(), savedUser.getRole().getTitle());
+        return userMapper.toDTO(savedUser);
     }
 
     @Override
@@ -93,5 +113,4 @@ public class UserService extends GenericService<User, UserDTO> {
         List<User> users = userRepository.findByFullNameContaining(name);
         return userMapper.toDTOList(users);
     }
-
 }

@@ -11,7 +11,9 @@ import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.stereotype.Service;
 import java.util.ArrayList;
 import java.util.List;
+import lombok.extern.slf4j.Slf4j;
 
+@Slf4j
 @Service
 public class CustomUserDetailsService implements UserDetailsService {
 
@@ -31,18 +33,26 @@ public class CustomUserDetailsService implements UserDetailsService {
     }
 
     @Override
-    public UserDetails loadUserByUsername(String username) throws UsernameNotFoundException {
+    public UserDetails loadUserByUsername(String login) throws UsernameNotFoundException {
+        log.info("Загрузка пользователя по логину: {}", login);
+        
         // Проверяем, является ли пользователь админом по умолчанию
-        if (adminUsername.equals(username)) {
+        if (adminUsername.equals(login)) {
+            log.info("Найден встроенный администратор: {}", login);
             List<GrantedAuthority> authorities = new ArrayList<>();
             authorities.add(new SimpleGrantedAuthority("ROLE_" + adminRole));
-            return new CustomUserDetails(0L, adminUsername, adminPassword, authorities);
+            return new CustomUserDetails(0L, login, adminPassword, authorities);
         }
 
         // Ищем пользователя в базе данных
-        User user = userRepository.findByLogin(username)
-                .orElseThrow(() -> new UsernameNotFoundException("Пользователь не найден: " + username));
-
+        User user = userRepository.findByLogin(login)
+                .orElseThrow(() -> {
+                    log.error("Пользователь не найден: {}", login);
+                    return new UsernameNotFoundException("Пользователь не найден: " + login);
+                });
+        
+        log.info("Найден пользователь: {} с ролью: {}", login, user.getRole().getTitle());
+        
         // Создаем список разрешений на основе роли пользователя
         List<GrantedAuthority> authorities = new ArrayList<>();
         authorities.add(new SimpleGrantedAuthority("ROLE_" + user.getRole().getTitle()));

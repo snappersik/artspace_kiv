@@ -21,7 +21,7 @@ import java.util.List;
 
 @RestController
 @Slf4j
-@RequestMapping("/api/tickets")
+@RequestMapping("/tickets")
 @Tag(name = "Tickets", description = "API для работы с билетами")
 public class TicketController extends GenericController<Ticket, TicketDTO> {
 

@@ -18,7 +18,7 @@ import org.springframework.web.bind.annotation.*;
 
 @RestController
 @Slf4j
-@RequestMapping("/api/users")
+@RequestMapping("/users")
 @Tag(name = "Users", description = "API для работы с пользователями")
 public class UserController extends GenericController<User, UserDTO> {
 
