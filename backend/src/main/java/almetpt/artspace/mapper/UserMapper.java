@@ -2,7 +2,9 @@ package almetpt.artspace.mapper;
 
 import almetpt.artspace.dto.UserDTO;
 import almetpt.artspace.model.GenericModel;
+import almetpt.artspace.model.Role; // Import Role
 import almetpt.artspace.model.User;
+import almetpt.artspace.repository.RoleRepository; // Keep if used elsewhere, not directly here now
 import jakarta.annotation.PostConstruct;
 import org.modelmapper.ModelMapper;
 import org.springframework.stereotype.Component;
@@ -15,8 +17,9 @@ import java.util.stream.Collectors;
 @Component
 public class UserMapper extends GenericMapper<User, UserDTO> {
 
-    public UserMapper(ModelMapper mapper) {
+    public UserMapper(ModelMapper mapper, RoleRepository roleRepository) {
         super(User.class, UserDTO.class, mapper);
+        // this.roleRepository = roleRepository; // Keep if needed
     }
 
     @Override
@@ -24,8 +27,6 @@ public class UserMapper extends GenericMapper<User, UserDTO> {
     public void setupMapper() {
         modelMapper.createTypeMap(User.class, UserDTO.class)
                 .addMappings(m -> {
-                    m.map(src -> src.getRole() != null ? src.getRole().getId() : null, UserDTO::setRoleId);
-                    m.map(src -> src.getRole() != null ? src.getRole().getTitle() : null, UserDTO::setRoleName);
                     m.skip(UserDTO::setTicketIds);
                 })
                 .setPostConverter(toDTOConverter());
@@ -33,27 +34,33 @@ public class UserMapper extends GenericMapper<User, UserDTO> {
         modelMapper.createTypeMap(UserDTO.class, User.class)
                 .addMappings(m -> {
                     m.skip(User::setRole);
-                    m.skip(User::setTickets);
-                    m.skip(User::setPassword); // Пароль обрабатывается отдельно
+                    m.skip(User::setTickets); 
                 })
                 .setPostConverter(toEntityConverter());
     }
 
     @Override
     protected void mapSpecificFields(UserDTO source, User destination) {
-        // Role и tickets устанавливаются в сервисе
-        destination.setTickets(Collections.emptySet());
+        destination.setTickets(Collections.emptySet()); 
     }
 
     @Override
     protected void mapSpecificFields(User source, UserDTO destination) {
+        if (source != null && source.getRole() != null) {
+            Role role = source.getRole();
+            destination.setRoleId(role.getId());
+            destination.setRoleName(role.getTitle());
+        } else {
+            destination.setRoleId(null);
+            destination.setRoleName(null);
+        }
         destination.setTicketIds(getIds(source));
     }
 
     @Override
     protected List<Long> getIds(User user) {
         return Objects.isNull(user) || Objects.isNull(user.getTickets())
-                ? null
+                ? Collections.emptyList() 
                 : user.getTickets().stream()
                         .map(GenericModel::getId)
                         .collect(Collectors.toList());

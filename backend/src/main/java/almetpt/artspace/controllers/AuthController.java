@@ -29,10 +29,10 @@ public class AuthController {
 
     private final UserService userService;
     private final AuthenticationManager authenticationManager;
-    
+
     @Value("${server.servlet.session.cookie.name:jwt}")
     private String cookieName;
-    
+
     @Value("${server.servlet.session.cookie.max-age:3600}")
     private int cookieMaxAge;
 
@@ -41,7 +41,6 @@ public class AuthController {
         this.authenticationManager = authenticationManager;
     }
 
-    @Operation(summary = "Регистрация нового пользователя", description = "Позволяет зарегистрировать нового пользователя в системе")
     @PostMapping(value = "/register", produces = MediaType.APPLICATION_JSON_VALUE, consumes = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<UserDTO> register(@RequestBody UserDTO userDTO) {
         try {
@@ -54,11 +53,12 @@ public class AuthController {
             } catch (Exception ignored) {
                 // Пользователь не найден, можно продолжать регистрацию
             }
-            
+
             // Устанавливаем роль USER для всех новых пользователей
             userDTO.setRoleName(UserRoleConstants.USER);
-            log.info("Регистрация пользователя с ролью: {}", userDTO.getRoleName());
-            
+            userDTO.setRoleId(2L);
+            log.info("Регистрация пользователя с ролью: {}, ID роли: {}", userDTO.getRoleName(), userDTO.getRoleId());
+
             UserDTO createdUser = userService.create(userDTO);
             return ResponseEntity.status(HttpStatus.CREATED).body(createdUser);
         } catch (Exception e) {
@@ -72,24 +72,23 @@ public class AuthController {
     public ResponseEntity<String> login(@RequestBody LoginDTO loginRequest, HttpServletResponse response) {
         try {
             log.info("Попытка входа для пользователя: {}", loginRequest.getLogin());
-            
+
             Authentication authentication = authenticationManager.authenticate(
                     new UsernamePasswordAuthenticationToken(
                             loginRequest.getLogin(),
-                            loginRequest.getPassword()
-                    )
-            );
-            
+                            loginRequest.getPassword()));
+
             SecurityContextHolder.getContext().setAuthentication(authentication);
-            
+
             // Создаем куки для сессии
             Cookie cookie = new Cookie(cookieName, "authenticated");
             cookie.setPath("/");
             cookie.setHttpOnly(true);
             cookie.setMaxAge(cookieMaxAge);
+            cookie.setSecure(false); // Установите true для HTTPS
             response.addCookie(cookie);
-            
-            log.info("Успешный вход пользователя: {}", loginRequest.getLogin());
+
+            log.info("Успешный вход пользователя: {}, добавлена куки: {}", loginRequest.getLogin(), cookieName);
             return ResponseEntity.ok().body("Аутентификация успешна");
         } catch (Exception e) {
             log.error("Ошибка аутентификации для {}: {}", loginRequest.getLogin(), e.getMessage());
@@ -100,16 +99,16 @@ public class AuthController {
     @Operation(summary = "Выход из системы", description = "Завершение сессии пользователя")
     @PostMapping("/logout")
     public ResponseEntity<String> logout(HttpServletRequest request, HttpServletResponse response,
-                                        Authentication authentication) {
+            Authentication authentication) {
         SecurityContextLogoutHandler logoutHandler = new SecurityContextLogoutHandler();
         logoutHandler.logout(request, response, authentication);
-        
+
         // Удаляем куки
         Cookie cookie = new Cookie(cookieName, null);
         cookie.setPath("/");
         cookie.setMaxAge(0);
         response.addCookie(cookie);
-        
+
         return ResponseEntity.ok().body("Выход выполнен успешно");
     }
 }
