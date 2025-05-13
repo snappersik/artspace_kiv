@@ -18,7 +18,6 @@ class ApiStore {
       withCredentials: true // Важно для передачи куки
     });
 
-    // Раскомментируем для автоматической проверки авторизации
     this.checkAuth();
   }
 
@@ -40,7 +39,8 @@ class ApiStore {
     this.setLoading(true);
     this.setError(null);
     try {
-      await this.apiClient.post('/api/auth/login', { login, password });
+      // Запрос пойдет на /auth/login
+      await this.apiClient.post('/auth/login', { login, password });
       await this.fetchUserProfile();
       this.setLoading(false);
       return true;
@@ -57,6 +57,7 @@ class ApiStore {
     this.setLoading(true);
     this.setError(null);
     try {
+      // Запрос пойдет на /auth/register
       await this.apiClient.post('/auth/register', userData);
       this.setLoading(false);
       return true;
@@ -81,6 +82,7 @@ class ApiStore {
   // Получение данных профиля
   async fetchUserProfile() {
     try {
+      // Запрос пойдет на /users/profile
       const response = await this.apiClient.get('/users/profile');
       this.setUser(response.data);
       return response.data;
@@ -93,12 +95,12 @@ class ApiStore {
   // Выход
   async logout() {
     try {
+      // Запрос пойдет на /auth/logout
       await this.apiClient.post('/auth/logout');
     } catch (error) {
       console.error('Logout error:', error);
     }
     this.setUser(null);
-    // После выхода перенаправляем на страницу входа
     window.location.href = '/login';
   }
 
@@ -106,6 +108,7 @@ class ApiStore {
   async fetchArtworks(page = 0, size = 10) {
     this.setLoading(true);
     try {
+      // Запрос пойдет на /artworks?page=...
       const response = await this.apiClient.get(`/artworks?page=${page}&size=${size}`);
       this.setLoading(false);
       return response.data;
@@ -120,6 +123,7 @@ class ApiStore {
   async fetchArtists(page = 0, size = 10) {
     this.setLoading(true);
     try {
+      // Запрос пойдет на /artists?page=...
       const response = await this.apiClient.get(`/artists?page=${page}&size=${size}`);
       this.setLoading(false);
       return response.data;
@@ -134,6 +138,7 @@ class ApiStore {
   async fetchExhibitions(page = 0, size = 10) {
     this.setLoading(true);
     try {
+      // Запрос пойдет на /exhibitions?page=...
       const response = await this.apiClient.get(`/exhibitions?page=${page}&size=${size}`);
       this.setLoading(false);
       return response.data;
@@ -148,6 +153,7 @@ class ApiStore {
   async fetchCurrentExhibitions() {
     this.setLoading(true);
     try {
+      // Запрос пойдет на /exhibitions/current
       const response = await this.apiClient.get('/exhibitions/current');
       this.setLoading(false);
       return response.data;
