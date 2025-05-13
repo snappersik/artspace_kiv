@@ -1,45 +1,43 @@
-import React, { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import React from 'react';
 import { Navbar as BootstrapNavbar, Nav, Container, Button } from 'react-bootstrap';
+import { Link, useNavigate } from 'react-router-dom';
 import { observer } from 'mobx-react';
-import apiStore from '../../stores/ApiStore';
+import apiStore from '../../stores/ApiStore'; // Ensure this path is correct
 
 const Navbar = observer(() => {
-  const [expanded, setExpanded] = useState(false);
   const navigate = useNavigate();
-  const { isAuthenticated, user, logout } = apiStore;
+  const { isAuthenticated, user } = apiStore;
 
-  const handleLogout = () => {
-    logout();
-    navigate('/');
+  const handleLogout = async () => {
+    await apiStore.logout();
+    navigate('/login'); // Redirect to login after logout
   };
 
   return (
-    <BootstrapNavbar bg="dark" variant="dark" expand="lg" expanded={expanded} className="mb-4">
+    <BootstrapNavbar bg="dark" variant="dark" expand="lg" className="mb-4">
       <Container>
-        <BootstrapNavbar.Brand as={Link} to="/">Центр Искусства</BootstrapNavbar.Brand>
-        <BootstrapNavbar.Toggle 
-          aria-controls="basic-navbar-nav" 
-          onClick={() => setExpanded(!expanded)} 
-        />
+        <BootstrapNavbar.Brand as={Link} to="/">ArtSpace</BootstrapNavbar.Brand>
+        <BootstrapNavbar.Toggle aria-controls="basic-navbar-nav" />
         <BootstrapNavbar.Collapse id="basic-navbar-nav">
           <Nav className="me-auto">
-            <Nav.Link as={Link} to="/artworks" onClick={() => setExpanded(false)}>Произведения</Nav.Link>
-            <Nav.Link as={Link} to="/artists" onClick={() => setExpanded(false)}>Художники</Nav.Link>
-            <Nav.Link as={Link} to="/exhibitions" onClick={() => setExpanded(false)}>Выставки</Nav.Link>
+            <Nav.Link as={Link} to="/">Главная</Nav.Link>
+            <Nav.Link as={Link} to="/artworks">Произведения</Nav.Link>
+            <Nav.Link as={Link} to="/artists">Художники</Nav.Link>
+            <Nav.Link as={Link} to="/exhibitions">Выставки</Nav.Link>
           </Nav>
           <Nav>
             {isAuthenticated ? (
               <>
-                <span className="navbar-text me-3">
-                  Привет, {user?.firstName || 'Пользователь'}
-                </span>
+                {user?.roleName === 'ADMIN' && (
+                  <Nav.Link as={Link} to="/admin">Админ. панель</Nav.Link>
+                )}
+                <Nav.Link as={Link} to="/profile">Профиль ({user?.login})</Nav.Link>
                 <Button variant="outline-light" onClick={handleLogout}>Выйти</Button>
               </>
             ) : (
               <>
-                <Nav.Link as={Link} to="/login" onClick={() => setExpanded(false)}>Войти</Nav.Link>
-                <Nav.Link as={Link} to="/register" onClick={() => setExpanded(false)}>Регистрация</Nav.Link>
+                <Nav.Link as={Link} to="/login">Вход</Nav.Link>
+                <Nav.Link as={Link} to="/register">Регистрация</Nav.Link>
               </>
             )}
           </Nav>

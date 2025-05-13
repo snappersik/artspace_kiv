@@ -11,14 +11,18 @@ const Login = observer(() => {
   });
   const [validated, setValidated] = useState(false);
   const navigate = useNavigate();
-  const { loading, error, isAuthenticated } = apiStore;
+  const { loading, error, isAuthenticated, user } = apiStore; // Destructure user
 
-  // Если пользователь уже аутентифицирован, перенаправляем на профиль
+  // Effect for already authenticated users when component mounts
   useEffect(() => {
     if (isAuthenticated) {
-      navigate('/profile');
+      if (user?.roleName === 'ADMIN') {
+        navigate('/admin');
+      } else {
+        navigate('/profile');
+      }
     }
-  }, [isAuthenticated, navigate]);
+  }, [isAuthenticated, user, navigate]); // Add user to dependencies
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -35,15 +39,19 @@ const Login = observer(() => {
       return;
     }
     
-    // Упрощаем обработку - apiStore.login сам обрабатывает ошибки
     const success = await apiStore.login(formData.login, formData.password);
     if (success) {
-      navigate('/profile');
+      // apiStore.user should be populated by fetchUserProfile inside apiStore.login
+      if (apiStore.user?.roleName === 'ADMIN') {
+        navigate('/admin');
+      } else {
+        navigate('/profile');
+      }
     }
   };
 
   return (
-    <Container className="py-5 auth-container">
+    <Container className="py-5">
       <Row className="justify-content-center">
         <Col md={6}>
           <Card className="auth-card">

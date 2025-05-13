@@ -15,6 +15,7 @@ import Register from './components/auth/Register';
 import Profile from './components/auth/Profile';
 import NotFound from './components/pages/NotFound';
 import ProtectedRoute from './components/auth/ProtectedRoute';
+import AdminPanel from './components/admin/AdminPanel'; // Import AdminPanel
 
 const App = observer(() => {
   return (
@@ -28,11 +29,22 @@ const App = observer(() => {
           <Route path="/exhibitions" element={<ExhibitionList />} />
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
-          <Route path="/profile" element={
-            <ProtectedRoute>
-              <Profile />
-            </ProtectedRoute>
-          } />
+          <Route 
+            path="/profile" 
+            element={
+              <ProtectedRoute>
+                <Profile />
+              </ProtectedRoute>
+            } 
+          />
+          <Route 
+            path="/admin"
+            element={
+              <ProtectedRoute>
+                <AdminPanel />
+              </ProtectedRoute>
+            }
+          />
           <Route path="*" element={<NotFound />} />
         </Routes>
       </main>
