@@ -1,6 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Container, Row, Col, Card, Button, Pagination, Spinner, Form } from 'react-bootstrap';
 import apiStore from '../../stores/ApiStore';
+import { debounce } from 'lodash'; // Для задержки поиска
 
 const ArtworkList = () => {
   const [artworks, setArtworks] = useState([]);
@@ -8,56 +9,72 @@ const ArtworkList = () => {
   const [page, setPage] = useState(0);
   const [totalPages, setTotalPages] = useState(0);
   const [searchTitle, setSearchTitle] = useState('');
+  const [currentSearchTerm, setCurrentSearchTerm] = useState(''); // Для фактического запроса
   const size = 9;
 
-  useEffect(() => {
-    const fetchData = async () => {
-      try {
-        const data = await apiStore.fetchArtworks(page, size);
-        setArtworks(data.content || []);
-        setTotalPages(Math.ceil(data.totalElements / size) || 0);
-      } catch (error) {
-        console.error('Error fetching artworks:', error);
-      } finally {
-        setLoading(false);
+  const fetchArtworksData = useCallback(async (currentPage, titleQuery) => {
+    setLoading(true);
+    try {
+      let data;
+      if (titleQuery) {
+        // Предполагаем, что searchArtworks принимает DTO, создадим его
+        data = await apiStore.searchArtworks({ title: titleQuery }, currentPage, size);
+      } else {
+        data = await apiStore.fetchArtworks(currentPage, size);
       }
-    };
+      setArtworks(data.content || []);
+      setTotalPages(data.totalPages || 0);
+      setPage(data.number || 0);
+    } catch (error) {
+      console.error('Error fetching artworks:', error);
+      setArtworks([]);
+      setTotalPages(0);
+    } finally {
+      setLoading(false);
+    }
+  }, []); 
 
-    fetchData();
-  }, [page]);
+  useEffect(() => {
+    fetchArtworksData(page, currentSearchTerm);
+  }, [page, currentSearchTerm, fetchArtworksData]);
+
+  const debouncedSearch = useCallback(
+    debounce((searchTermValue) => {
+      setPage(0); // Сброс на первую страницу при новом поиске
+      setCurrentSearchTerm(searchTermValue); // Это вызовет useEffect для загрузки данных
+    }, 500),
+    [] // Зависимостей нет, т.к. setCurrentSearchTerm стабилен
+  );
+
+  const handleSearchInputChange = (e) => {
+    const { value } = e.target;
+    setSearchTitle(value);
+    debouncedSearch(value);
+  };
 
   const handlePageChange = (newPage) => {
     setPage(newPage);
     window.scrollTo(0, 0);
   };
 
-  const handleSearch = (e) => {
-    e.preventDefault();
-    // Здесь можно добавить поиск по названию
-    console.log('Searching for:', searchTitle);
-  };
-
   return (
     <Container className="py-4">
       <h1 className="mb-4">Произведения искусства</h1>
       
-      <Form onSubmit={handleSearch} className="mb-4">
+      <Form onSubmit={(e) => e.preventDefault()} className="mb-4"> {/* onSubmit для предотвращения перезагрузки */}
         <Row>
           <Col md={10}>
             <Form.Control
               type="text"
               placeholder="Поиск по названию"
               value={searchTitle}
-              onChange={(e) => setSearchTitle(e.target.value)}
+              onChange={handleSearchInputChange}
             />
-          </Col>
-          <Col md={2}>
-            <Button type="submit" variant="primary" className="w-100">Поиск</Button>
           </Col>
         </Row>
       </Form>
       
-      {loading ? (
+      {loading && artworks.length === 0 ? ( // Показываем спиннер только при первой загрузке или если список пуст
         <div className="text-center py-5">
           <Spinner animation="border" role="status">
             <span className="visually-hidden">Загрузка...</span>
@@ -65,9 +82,9 @@ const ArtworkList = () => {
         </div>
       ) : (
         <>
-          <Row>
-            {artworks.length > 0 ? (
-              artworks.map(artwork => (
+          {artworks.length > 0 ? (
+            <Row>
+              {artworks.map(artwork => (
                 <Col key={artwork.id} md={4} className="mb-4">
                   <Card className="h-100">
                     <Card.Img 
@@ -87,20 +104,19 @@ const ArtworkList = () => {
                     </Card.Body>
                   </Card>
                 </Col>
-              ))
-            ) : (
-              <Col>
-                <p className="text-center">Произведения не найдены</p>
+              ))}
+            </Row>
+          ) : (
+             <Col>
+                <p className="text-center">Произведения не найдены {currentSearchTerm && `по запросу "${currentSearchTerm}"`}</p>
               </Col>
-            )}
-          </Row>
+          )}
           
           {totalPages > 1 && (
             <div className="d-flex justify-content-center mt-4">
               <Pagination>
                 <Pagination.First onClick={() => handlePageChange(0)} disabled={page === 0} />
                 <Pagination.Prev onClick={() => handlePageChange(page - 1)} disabled={page === 0} />
-                
                 {[...Array(totalPages).keys()].map(number => (
                   <Pagination.Item 
                     key={number} 
@@ -110,7 +126,6 @@ const ArtworkList = () => {
                     {number + 1}
                   </Pagination.Item>
                 ))}
-                
                 <Pagination.Next onClick={() => handlePageChange(page + 1)} disabled={page === totalPages - 1} />
                 <Pagination.Last onClick={() => handlePageChange(totalPages - 1)} disabled={page === totalPages - 1} />
               </Pagination>

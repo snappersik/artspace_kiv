@@ -12,25 +12,19 @@ import java.util.List;
 @Repository
 public interface ExhibitionRepository extends GenericRepository<Exhibition> {
        List<Exhibition> findByStartDateAfterAndEndDateBefore(LocalDate startDate, LocalDate endDate);
-
        List<Exhibition> findByEndDateBefore(LocalDate date);
-
        List<Exhibition> findByStartDateGreaterThan(LocalDate now);
-
-       Page<Exhibition> findByStartDateLessThanEqualAndEndDateGreaterThanEqual(
-                     LocalDate startDate,
-                     LocalDate endDate,
-                     Pageable pageable);
-
-       Page<Exhibition> findByStartDateAfter(
-                     LocalDate date,
-                     Pageable pageable);
+       Page<Exhibition> findByStartDateLessThanEqualAndEndDateGreaterThanEqual(LocalDate startDate, LocalDate endDate, Pageable pageable);
+       Page<Exhibition> findByStartDateAfter(LocalDate date, Pageable pageable);
 
        @Query("SELECT e FROM Exhibition e WHERE " +
-                     "(:title IS NULL OR e.title LIKE %:title%) AND " +
+                     "(:title IS NULL OR lower(e.title) LIKE lower(concat('%', :title, '%'))) AND " +
+                     "(:location IS NULL OR lower(e.location) LIKE lower(concat('%', :location, '%'))) AND " +
                      "(:startDate IS NULL OR e.startDate >= :startDate) AND " +
                      "(:endDate IS NULL OR e.endDate <= :endDate)")
-       Page<Exhibition> findFiltered(@Param("title") String title,
+       Page<Exhibition> findFiltered(
+                     @Param("title") String title,
+                     @Param("location") String location,
                      @Param("startDate") LocalDate startDate,
                      @Param("endDate") LocalDate endDate,
                      Pageable pageable);

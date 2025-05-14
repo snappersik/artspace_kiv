@@ -27,7 +27,7 @@ import static almetpt.artspace.constants.UserRoleConstants.ADMIN;
 
 @Configuration
 @EnableWebSecurity
-@EnableMethodSecurity(prePostEnabled = true) // Включаем поддержку @PreAuthorize на методах
+@EnableMethodSecurity(prePostEnabled = true)
 public class WebSecurityConfig {
 
     private final CustomUserDetailsService userDetailsService;

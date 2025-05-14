@@ -4,13 +4,13 @@ import { makeAutoObservable } from 'mobx';
 class ApiStore {
   user = null;
   isAuthenticated = false;
-  loading = true; // Начальное состояние true, пока checkAuth не завершится
+  loading = true; 
   error = null;
 
   constructor() {
     makeAutoObservable(this);
     this.apiClient = axios.create({
-      baseURL: '', // Для Vite proxy baseURL должен быть пустой строкой
+      baseURL: '', 
       headers: {
         'Content-Type': 'application/json',
         'X-Requested-With': 'XMLHttpRequest'
@@ -23,9 +23,7 @@ class ApiStore {
   setUser(user) {
     this.user = user;
     this.isAuthenticated = !!user;
-    if (user) {
-      this.error = null;
-    }
+    if (user) this.error = null;
   }
 
   setLoading(loading) {
@@ -34,7 +32,7 @@ class ApiStore {
 
   setError(error) {
     this.error = error;
-    this.loading = false; // Сброс загрузки при ошибке
+    this.loading = false;
   }
 
   async login(login, password) {
@@ -42,14 +40,13 @@ class ApiStore {
     this.setError(null);
     try {
       await this.apiClient.post('/auth/login', { login, password });
-      await this.fetchUserProfile(); // Обновит user и isAuthenticated
+      await this.fetchUserProfile();
       this.setLoading(false);
       return true;
     } catch (err) {
       const errorMessage = err.response?.data?.message || err.message || 'Ошибка авторизации';
       this.setError(errorMessage);
-      this.setUser(null); // Сброс пользователя при ошибке
-      // setLoading(false) уже будет вызвано в setError или finally, если добавить
+      this.setUser(null);
       return false;
     }
   }
@@ -63,50 +60,46 @@ class ApiStore {
       return true;
     } catch (err) {
       this.setError(err.response?.data?.message || 'Ошибка регистрации');
-      // setLoading(false) уже будет вызвано в setError
       return false;
     }
   }
 
   async checkAuth() {
-    this.setLoading(true); // Устанавливаем loading в true в начале проверки
+    this.setLoading(true);
     try {
       await this.fetchUserProfile();
     } catch (err) {
-      // setUser(null) вызовется в fetchUserProfile, если профиль не загружен
-      // Оставляем this.isAuthenticated = false
+      // User is not authenticated
     } finally {
-      this.setLoading(false); // Устанавливаем loading в false после завершения проверки
+      this.setLoading(false);
     }
   }
 
   async fetchUserProfile() {
-    // Этот метод не должен управлять глобальным this.loading сам по себе,
-    // пусть это делают login() или checkAuth()
     try {
       const response = await this.apiClient.get('/users/profile');
       this.setUser(response.data);
       return response.data;
     } catch (err) {
-      this.setUser(null); // Важно для обновления isAuthenticated на false
-      throw err; // Перебрасываем ошибку, чтобы checkAuth/login могли ее обработать
+      this.setUser(null);
+      throw err;
     }
   }
 
   async updateProfile(userData) {
-    this.setLoading(true);
-    this.setError(null);
-    try {
-      const response = await this.apiClient.put('/users/profile', userData);
-      this.setUser(response.data);
-      this.setLoading(false);
-      return response.data;
-    } catch (err) {
-      this.setError(err.response?.data?.message || 'Ошибка обновления профиля');
-      this.setLoading(false); // Убедимся, что loading сбрасывается
-      throw err;
-    }
-  }
+     this.setLoading(true);
+     this.setError(null);
+     try {
+       const response = await this.apiClient.put('/users/profile', userData);
+       this.setUser(response.data); // Обновляем пользователя в сторе
+       this.setLoading(false);
+       return response.data;
+     } catch (err) {
+       this.setError(err.response?.data?.message || 'Ошибка обновления профиля');
+       this.setLoading(false);
+       throw err;
+     }
+   }
 
   async logout() {
     this.setLoading(true);
@@ -117,121 +110,95 @@ class ApiStore {
     } finally {
       this.setUser(null);
       this.setLoading(false);
-      // Перенаправление на /login лучше делать в компоненте (например, Navbar)
     }
   }
 
-  // Методы для админ-панели (CRUD для users)
+  // --- Generic Fetch Method ---
+  async _fetchPagedData(endpoint, page = 0, size = 10, searchParams = null) {
+    this.setLoading(true);
+    this.setError(null);
+    try {
+      const config = { params: { page, size } };
+      let response;
+      if (searchParams) {
+        // Для POST search, page и size идут как query params
+        response = await this.apiClient.post(`${endpoint}/search`, searchParams, { params: { page, size } });
+      } else {
+        response = await this.apiClient.get(endpoint, config);
+      }
+      return response.data;
+    } catch (err) {
+      this.setError(err.response?.data?.message || `Ошибка получения данных с ${endpoint}`);
+      return { content: [], totalElements: 0, totalPages: 0 };
+    } finally {
+      this.setLoading(false);
+    }
+  }
+
+  // --- Users ---
   async fetchUsers(page = 0, size = 10) {
-    this.setLoading(true);
-    this.setError(null);
-    try {
-      const response = await this.apiClient.get(`/users?page=${page}&size=${size}`);
-      return response.data;
-    } catch (err) {
-      this.setError(err.response?.data?.message || 'Ошибка получения пользователей');
-      return { content: [], totalElements: 0, totalPages: 0 }; // Добавил totalPages для консистентности
-    } finally {
-      this.setLoading(false);
-    }
+    return this._fetchPagedData('/users', page, size);
   }
+  async searchUsers(searchDTO, page = 0, size = 10) {
+    return this._fetchPagedData('/users', page, size, searchDTO);
+  }
+  // createUser, updateUser, deleteUser остаются для прямого вызова, если нужно,
+  // или можно их обернуть для управления loading/error глобально.
+  // Для админки CRUD операции обычно используют apiClient.post/put/delete напрямую в компонентах,
+  // т.к. там своя логика обработки ошибок и состояния загрузки формы.
 
+  // --- Artworks ---
   async fetchArtworks(page = 0, size = 9) {
-    this.setLoading(true);
-    this.setError(null);
-    try {
-      const response = await this.apiClient.get(`/artworks?page=${page}&size=${size}`);
-      return response.data;
-    } catch (err) {
-      this.setError(err.response?.data?.message || 'Ошибка получения произведений искусства');
-      return { content: [], totalElements: 0, totalPages: 0 };
-    } finally {
-      this.setLoading(false);
-    }
+    return this._fetchPagedData('/artworks', page, size);
   }
-
-  async fetchArtists(page = 0, size = 9) {
-    this.setLoading(true);
-    this.setError(null);
-    try {
-      const response = await this.apiClient.get(`/artists?page=${page}&size=${size}`);
-      return response.data;
-    } catch (err) {
-      this.setError(err.response?.data?.message || 'Ошибка получения художников');
-      return { content: [], totalElements: 0, totalPages: 0 };
-    } finally {
-      this.setLoading(false);
-    }
+  async searchArtworks(searchDTO, page = 0, size = 9) {
+    return this._fetchPagedData('/artworks', page, size, searchDTO);
   }
-
-  async fetchExhibitions(page = 0, size = 9) {
+   async fetchAllArtworks() { // Для выбора в выставках, без пагинации
     this.setLoading(true);
     this.setError(null);
     try {
-      const response = await this.apiClient.get(`/exhibitions?page=${page}&size=${size}`);
+      const response = await this.apiClient.get('/artworks/getAll');
       return response.data;
     } catch (err) {
-      this.setError(err.response?.data?.message || 'Ошибка получения выставок');
-      return { content: [], totalElements: 0, totalPages: 0 };
-    } finally {
-      this.setLoading(false);
-    }
-  }
-
-  async fetchCurrentExhibitions() {
-    this.setLoading(true);
-    this.setError(null);
-    try {
-      const response = await this.apiClient.get('/exhibitions/current');
-      return response.data;
-    } catch (err) {
-      this.setError(err.response?.data?.message || 'Ошибка получения текущих выставок');
+      this.setError(err.response?.data?.message || 'Ошибка получения всех произведений');
       return [];
     } finally {
       this.setLoading(false);
     }
   }
 
-  async createUser(userData) {
+
+  // --- Artists ---
+  async fetchArtists(page = 0, size = 9) {
+    return this._fetchPagedData('/artists', page, size);
+  }
+  async searchArtists(searchDTO, page = 0, size = 9) {
+    return this._fetchPagedData('/artists', page, size, searchDTO);
+  }
+  async fetchAllArtists() { 
     this.setLoading(true);
     this.setError(null);
     try {
-      const response = await this.apiClient.post('/users/add', userData);
-      this.setLoading(false);
+      const response = await this.apiClient.get('/artists/getAll');
       return response.data;
     } catch (err) {
-      this.setError(err.response?.data?.message || 'Ошибка создания пользователя');
+      this.setError(err.response?.data?.message || 'Ошибка получения всех художников');
+      return [];
+    } finally {
       this.setLoading(false);
-      throw err;
     }
   }
 
-  async updateUser(userId, userData) {
-    this.setLoading(true);
-    this.setError(null);
-    try {
-      const response = await this.apiClient.put(`/users/update?id=${userId}`, userData);
-      this.setLoading(false);
-      return response.data;
-    } catch (err) {
-      this.setError(err.response?.data?.message || 'Ошибка обновления пользователя');
-      this.setLoading(false);
-      throw err;
-    }
+  // --- Exhibitions ---
+  async fetchExhibitions(page = 0, size = 9) {
+    return this._fetchPagedData('/exhibitions', page, size);
   }
-
-  async deleteUser(userId) {
-    this.setLoading(true);
-    this.setError(null);
-    try {
-      await this.apiClient.delete(`/users/delete/${userId}`);
-      this.setLoading(false);
-      return true;
-    } catch (err) {
-      this.setError(err.response?.data?.message || 'Ошибка удаления пользователя');
-      this.setLoading(false);
-      throw err;
-    }
+  async searchExhibitions(searchDTO, page = 0, size = 9) {
+    return this._fetchPagedData('/exhibitions', page, size, searchDTO);
+  }
+  async fetchCurrentExhibitions(page = 0, size = 9) { // Используем общий метод
+    return this._fetchPagedData('/exhibitions/current', page, size);
   }
 }
 

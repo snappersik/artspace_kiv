@@ -2,6 +2,7 @@ package almetpt.artspace.controllers;
 
 import almetpt.artspace.constants.UserRoleConstants;
 import almetpt.artspace.dto.UserDTO;
+import almetpt.artspace.dto.UserSearchDTO; // Импорт UserSearchDTO
 import almetpt.artspace.model.User;
 import almetpt.artspace.service.UserService;
 import almetpt.artspace.service.userdetails.CustomUserDetails;
@@ -12,6 +13,7 @@ import lombok.extern.slf4j.Slf4j;
 
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.web.PageableDefault; // Для дефолтных значений пагинации
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -34,15 +36,13 @@ public class UserController extends GenericController<User, UserDTO> {
         this.userService = userService;
     }
 
-    @Override
-    @PreAuthorize("hasRole('ADMIN')") // Secure the paginated list
-    public ResponseEntity<Page<UserDTO>> getAll(Pageable pageable) {
-        return super.getAll(pageable);
-    }
+    // GET /users (с пагинацией) - наследуется от GenericController
+    // GET /users/getAll (без пагинации) - наследуется от GenericController
 
     @Operation(summary = "Получение профиля пользователя", description = "Возвращает информацию о текущем пользователе")
     @GetMapping("/profile")
     public ResponseEntity<?> getProfile(Authentication authentication) {
+        // ... (существующий код без изменений) ...
         log.info("Attempting to get user profile.");
 
         if (authentication == null) {
@@ -63,8 +63,7 @@ public class UserController extends GenericController<User, UserDTO> {
 
         log.info("/users/profile: Received request for userId: {}, userLogin: '{}'", userId, userLogin);
 
-        // Проверка для встроенного админа
-        if (userId == 0L && "admin".equals(userLogin)) {
+        if (userId == 0L && ADMIN_USERNAME.equals(userLogin)) {
             UserDTO adminProfile = new UserDTO();
             adminProfile.setId(0L);
             adminProfile.setLogin(userLogin);
@@ -75,8 +74,6 @@ public class UserController extends GenericController<User, UserDTO> {
             log.info("Returning profile for admin: {}", userLogin);
             return ResponseEntity.ok(adminProfile);
         }
-
-        // Для обычных пользователей из базы данных
         try {
             UserDTO userProfile = userService.getOne(userId);
             log.info("/users/profile: Successfully fetched profile for userId: {}", userId);
@@ -91,6 +88,7 @@ public class UserController extends GenericController<User, UserDTO> {
     @Operation(summary = "Обновление профиля пользователя", description = "Позволяет пользователю обновить свой профиль")
     @PutMapping("/profile")
     public ResponseEntity<UserDTO> updateProfile(@RequestBody UserDTO userDTO, Authentication authentication) {
+        // ... (существующий код без изменений) ...
         if (authentication == null || !(authentication.getPrincipal() instanceof CustomUserDetails)) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
         }
@@ -115,7 +113,7 @@ public class UserController extends GenericController<User, UserDTO> {
             return ResponseEntity.ok(adminProfile);
         }
 
-        userDTO.setId(currentUserId);
+        userDTO.setId(currentUserId); // Устанавливаем ID текущего пользователя для безопасности
         return ResponseEntity.ok(userService.update(userDTO));
     }
 
@@ -124,7 +122,15 @@ public class UserController extends GenericController<User, UserDTO> {
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<UserDTO> findByLogin(
             @Parameter(description = "Логин пользователя") @RequestParam String login) {
-
         return ResponseEntity.ok(userService.findByLogin(login));
+    }
+
+    @Operation(summary = "Расширенный поиск пользователей", description = "Позволяет искать пользователей по нескольким параметрам")
+    @PostMapping("/search")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<Page<UserDTO>> search(
+            @RequestBody UserSearchDTO searchDTO,
+            @PageableDefault(size = 10, sort = "login") Pageable pageable) {
+        return ResponseEntity.ok(userService.search(searchDTO, pageable));
     }
 }
