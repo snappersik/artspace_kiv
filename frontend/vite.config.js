@@ -37,7 +37,7 @@ export default defineConfig({
         changeOrigin: true,
         secure: false,
       },
-      '/admin': { // Если есть API эндпоинты на /admin/...
+      '/admin': {
         target: 'http://localhost:8080',
         changeOrigin: true,
         secure: false,
