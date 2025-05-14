@@ -1,45 +1,68 @@
 package almetpt.artspace.service;
 
 import almetpt.artspace.dto.GenericDTO;
-import almetpt.artspace.exception.NotFoundException;
-import almetpt.artspace.mapper.Mapper;
+import almetpt.artspace.mapper.GenericMapper;
 import almetpt.artspace.model.GenericModel;
-import almetpt.artspace.repository.GenericRepository;
-import org.springframework.stereotype.Service;
+import almetpt.artspace.exception.NotFoundException;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.transaction.annotation.Transactional;
 
-import java.time.LocalDateTime;
 import java.util.List;
 
-@Service
 public abstract class GenericService<E extends GenericModel, D extends GenericDTO> {
 
-    protected final GenericRepository<E> repository;
-    protected final Mapper<E, D> mapper;
+    protected final JpaRepository<E, Long> repository;
+    protected final GenericMapper<E, D> mapper;
 
-    public GenericService(GenericRepository<E> repository, Mapper<E, D> mapper) {
+    public GenericService(JpaRepository<E, Long> repository, GenericMapper<E, D> mapper) {
         this.repository = repository;
         this.mapper = mapper;
     }
 
+    @Transactional(readOnly = true)
+    public D getOne(Long id) {
+        E entity = repository.findById(id)
+                .orElseThrow(() -> new NotFoundException("Entity not found with id: " + id));
+        return mapper.toDTO(entity);
+    }
+
+    @Transactional(readOnly = true)
     public List<D> listAll() {
         return mapper.toDTOList(repository.findAll());
     }
 
-    public D getOne(final Long id) {
-        return mapper.toDTO(repository.findById(id)
-                .orElseThrow(() -> new NotFoundException("Данные по заданному id: " + id + " не найдено!")));
+    @Transactional(readOnly = true)
+    public Page<D> listAll(Pageable pageable) {
+        Page<E> entityPage = repository.findAll(pageable);
+        return entityPage.map(mapper::toDTO);
     }
 
-    public D create(D newObject) {
-        newObject.setCreatedWhen(LocalDateTime.now());
-        return mapper.toDTO(repository.save(mapper.toEntity(newObject)));
+    @Transactional
+    public D create(D dto) {
+        E entity = mapper.toEntity(dto);
+        E savedEntity = repository.save(entity);
+        return mapper.toDTO(savedEntity);
     }
 
-    public D update(D updatedObject) {
-        return mapper.toDTO(repository.save(mapper.toEntity(updatedObject)));
+    @Transactional
+    public D update(D dto) {
+        if (dto.getId() == null) {
+            throw new IllegalArgumentException("ID cannot be null for update");
+        }
+        E entity = repository.findById(dto.getId())
+                .orElseThrow(() -> new NotFoundException("Cannot update. Entity not found with id: " + dto.getId()));
+        mapper.updateEntityFromDto(dto, entity);
+        E updatedEntity = repository.save(entity);
+        return mapper.toDTO(updatedEntity);
     }
 
-    public void delete(final Long id) {
+    @Transactional
+    public void delete(Long id) {
+        if (!repository.existsById(id)) {
+            throw new NotFoundException("Cannot delete. Entity not found with id: " + id);
+        }
         repository.deleteById(id);
     }
 }

@@ -11,47 +11,35 @@ import java.util.List;
 import java.util.Objects;
 
 @Component
-public abstract class GenericMapper<E extends GenericModel, D extends GenericDTO>
-        implements Mapper<E, D> {
+public abstract class GenericMapper<E extends GenericModel, D extends GenericDTO> {
 
     private final Class<E> entityClass;
     private final Class<D> dtoClass;
     protected final ModelMapper modelMapper;
 
-    public GenericMapper(Class<E> entityClass,
-                        Class<D> dtoClass,
-                        ModelMapper modelMapper) {
+    public GenericMapper(Class<E> entityClass, Class<D> dtoClass, ModelMapper modelMapper) {
         this.entityClass = entityClass;
         this.dtoClass = dtoClass;
         this.modelMapper = modelMapper;
     }
 
-    @Override
     public E toEntity(D dto) {
-        return Objects.isNull(dto)
-                ? null
-                : modelMapper.map(dto, entityClass);
+        return Objects.isNull(dto) ? null : modelMapper.map(dto, entityClass);
     }
 
-    @Override
     public D toDTO(E entity) {
-        return Objects.isNull(entity)
-                ? null
-                : modelMapper.map(entity, dtoClass);
+        return Objects.isNull(entity) ? null : modelMapper.map(entity, dtoClass);
     }
 
-    @Override
     public List<E> toEntityList(List<D> dtos) {
         return dtos.stream().map(this::toEntity).toList();
     }
 
-    @Override
     public List<D> toDTOList(List<E> entities) {
         return entities.stream().map(this::toDTO).toList();
     }
 
-    @Override
-    public void updateEntityFromDTO(D dto, E entity) {
+    public void updateEntityFromDto(D dto, E entity) {
         if (dto != null && entity != null) {
             modelMapper.map(dto, entity);
             mapSpecificFields(dto, entity);
@@ -79,9 +67,9 @@ public abstract class GenericMapper<E extends GenericModel, D extends GenericDTO
 
     protected abstract void mapSpecificFields(D source, E destination);
     protected abstract void mapSpecificFields(E source, D destination);
-    
+
     @PostConstruct
     protected abstract void setupMapper();
-    
+
     protected abstract List<Long> getIds(E entity);
 }

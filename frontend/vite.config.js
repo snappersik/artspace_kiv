@@ -1,4 +1,3 @@
-// File: /home/cookie/Рабочий стол/ильвина/artspace/frontend/vite.config.js
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 
@@ -7,7 +6,7 @@ export default defineConfig({
   server: {
     port: 5000,
     proxy: {
-      // Проксируем только известные префиксы API
+      // Проксируем только известные API пути
       '/auth': {
         target: 'http://localhost:8080',
         changeOrigin: true,
@@ -37,7 +36,12 @@ export default defineConfig({
         target: 'http://localhost:8080',
         changeOrigin: true,
         secure: false,
+      },
+      '/admin': { // Если есть API эндпоинты на /admin/...
+        target: 'http://localhost:8080',
+        changeOrigin: true,
+        secure: false,
       }
     }
   }
-})
+});

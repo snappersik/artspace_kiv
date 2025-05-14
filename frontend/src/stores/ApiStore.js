@@ -4,26 +4,28 @@ import { makeAutoObservable } from 'mobx';
 class ApiStore {
   user = null;
   isAuthenticated = false;
-  loading = false;
+  loading = true; // Начальное состояние true, пока checkAuth не завершится
   error = null;
 
   constructor() {
     makeAutoObservable(this);
     this.apiClient = axios.create({
-      baseURL: '',
+      baseURL: '', // Для Vite proxy baseURL должен быть пустой строкой
       headers: {
         'Content-Type': 'application/json',
         'X-Requested-With': 'XMLHttpRequest'
       },
-      withCredentials: true // Важно для передачи куки
+      withCredentials: true
     });
-
     this.checkAuth();
   }
 
   setUser(user) {
     this.user = user;
     this.isAuthenticated = !!user;
+    if (user) {
+      this.error = null;
+    }
   }
 
   setLoading(loading) {
@@ -32,135 +34,203 @@ class ApiStore {
 
   setError(error) {
     this.error = error;
+    this.loading = false; // Сброс загрузки при ошибке
   }
 
-  // Авторизация
   async login(login, password) {
     this.setLoading(true);
     this.setError(null);
     try {
-      // Запрос пойдет на /auth/login
       await this.apiClient.post('/auth/login', { login, password });
-      await this.fetchUserProfile();
+      await this.fetchUserProfile(); // Обновит user и isAuthenticated
       this.setLoading(false);
       return true;
-    } catch (error) {
-      this.setError(error.response?.data?.message || 'Ошибка авторизации');
-      this.setLoading(false);
+    } catch (err) {
+      const errorMessage = err.response?.data?.message || err.message || 'Ошибка авторизации';
+      this.setError(errorMessage);
+      this.setUser(null); // Сброс пользователя при ошибке
+      // setLoading(false) уже будет вызвано в setError или finally, если добавить
       return false;
     }
   }
 
-
-  // Регистрация
   async register(userData) {
     this.setLoading(true);
     this.setError(null);
     try {
-      // Запрос пойдет на /auth/register
       await this.apiClient.post('/auth/register', userData);
       this.setLoading(false);
       return true;
-    } catch (error) {
-      this.setError(error.response?.data?.message || 'Ошибка регистрации');
-      this.setLoading(false);
+    } catch (err) {
+      this.setError(err.response?.data?.message || 'Ошибка регистрации');
+      // setLoading(false) уже будет вызвано в setError
       return false;
     }
   }
 
-  // Проверка авторизации
   async checkAuth() {
+    this.setLoading(true); // Устанавливаем loading в true в начале проверки
     try {
       await this.fetchUserProfile();
-      return true;
-    } catch (error) {
-      console.log('Not authenticated');
-      return false;
+    } catch (err) {
+      // setUser(null) вызовется в fetchUserProfile, если профиль не загружен
+      // Оставляем this.isAuthenticated = false
+    } finally {
+      this.setLoading(false); // Устанавливаем loading в false после завершения проверки
     }
   }
 
-  // Получение данных профиля
   async fetchUserProfile() {
+    // Этот метод не должен управлять глобальным this.loading сам по себе,
+    // пусть это делают login() или checkAuth()
     try {
-      // Запрос пойдет на /users/profile
       const response = await this.apiClient.get('/users/profile');
       this.setUser(response.data);
       return response.data;
-    } catch (error) {
-      this.setUser(null);
-      throw error;
+    } catch (err) {
+      this.setUser(null); // Важно для обновления isAuthenticated на false
+      throw err; // Перебрасываем ошибку, чтобы checkAuth/login могли ее обработать
     }
   }
 
-  // Выход
+  async updateProfile(userData) {
+    this.setLoading(true);
+    this.setError(null);
+    try {
+      const response = await this.apiClient.put('/users/profile', userData);
+      this.setUser(response.data);
+      this.setLoading(false);
+      return response.data;
+    } catch (err) {
+      this.setError(err.response?.data?.message || 'Ошибка обновления профиля');
+      this.setLoading(false); // Убедимся, что loading сбрасывается
+      throw err;
+    }
+  }
+
   async logout() {
+    this.setLoading(true);
     try {
-      // Запрос пойдет на /auth/logout
       await this.apiClient.post('/auth/logout');
-    } catch (error) {
-      console.error('Logout error:', error);
+    } catch (err) {
+      console.error('Ошибка при выходе из системы:', err.response?.data?.message || err.message);
+    } finally {
+      this.setUser(null);
+      this.setLoading(false);
+      // Перенаправление на /login лучше делать в компоненте (например, Navbar)
     }
-    this.setUser(null);
-    window.location.href = '/login';
   }
 
-  // Получение списка произведений искусства
-  async fetchArtworks(page = 0, size = 10) {
+  // Методы для админ-панели (CRUD для users)
+  async fetchUsers(page = 0, size = 10) {
     this.setLoading(true);
+    this.setError(null);
     try {
-      // Запрос пойдет на /artworks?page=...
+      const response = await this.apiClient.get(`/users?page=${page}&size=${size}`);
+      return response.data;
+    } catch (err) {
+      this.setError(err.response?.data?.message || 'Ошибка получения пользователей');
+      return { content: [], totalElements: 0, totalPages: 0 }; // Добавил totalPages для консистентности
+    } finally {
+      this.setLoading(false);
+    }
+  }
+
+  async fetchArtworks(page = 0, size = 9) {
+    this.setLoading(true);
+    this.setError(null);
+    try {
       const response = await this.apiClient.get(`/artworks?page=${page}&size=${size}`);
-      this.setLoading(false);
       return response.data;
-    } catch (error) {
-      this.setError(error.response?.data?.message || 'Ошибка получения произведений');
+    } catch (err) {
+      this.setError(err.response?.data?.message || 'Ошибка получения произведений искусства');
+      return { content: [], totalElements: 0, totalPages: 0 };
+    } finally {
       this.setLoading(false);
-      return { content: [], totalElements: 0 };
     }
   }
 
-  // Получение списка художников
-  async fetchArtists(page = 0, size = 10) {
+  async fetchArtists(page = 0, size = 9) {
     this.setLoading(true);
+    this.setError(null);
     try {
-      // Запрос пойдет на /artists?page=...
       const response = await this.apiClient.get(`/artists?page=${page}&size=${size}`);
-      this.setLoading(false);
       return response.data;
-    } catch (error) {
-      this.setError(error.response?.data?.message || 'Ошибка получения художников');
+    } catch (err) {
+      this.setError(err.response?.data?.message || 'Ошибка получения художников');
+      return { content: [], totalElements: 0, totalPages: 0 };
+    } finally {
       this.setLoading(false);
-      return { content: [], totalElements: 0 };
     }
   }
 
-  // Получение списка выставок
-  async fetchExhibitions(page = 0, size = 10) {
+  async fetchExhibitions(page = 0, size = 9) {
     this.setLoading(true);
+    this.setError(null);
     try {
-      // Запрос пойдет на /exhibitions?page=...
       const response = await this.apiClient.get(`/exhibitions?page=${page}&size=${size}`);
-      this.setLoading(false);
       return response.data;
-    } catch (error) {
-      this.setError(error.response?.data?.message || 'Ошибка получения выставок');
+    } catch (err) {
+      this.setError(err.response?.data?.message || 'Ошибка получения выставок');
+      return { content: [], totalElements: 0, totalPages: 0 };
+    } finally {
       this.setLoading(false);
-      return { content: [], totalElements: 0 };
     }
   }
 
-  // Получение текущих выставок
   async fetchCurrentExhibitions() {
     this.setLoading(true);
+    this.setError(null);
     try {
-      // Запрос пойдет на /exhibitions/current
       const response = await this.apiClient.get('/exhibitions/current');
+      return response.data;
+    } catch (err) {
+      this.setError(err.response?.data?.message || 'Ошибка получения текущих выставок');
+      return [];
+    } finally {
+      this.setLoading(false);
+    }
+  }
+
+  async createUser(userData) {
+    this.setLoading(true);
+    this.setError(null);
+    try {
+      const response = await this.apiClient.post('/users/add', userData);
       this.setLoading(false);
       return response.data;
-    } catch (error) {
-      this.setError(error.response?.data?.message || 'Ошибка получения текущих выставок');
+    } catch (err) {
+      this.setError(err.response?.data?.message || 'Ошибка создания пользователя');
       this.setLoading(false);
-      return [];
+      throw err;
+    }
+  }
+
+  async updateUser(userId, userData) {
+    this.setLoading(true);
+    this.setError(null);
+    try {
+      const response = await this.apiClient.put(`/users/update?id=${userId}`, userData);
+      this.setLoading(false);
+      return response.data;
+    } catch (err) {
+      this.setError(err.response?.data?.message || 'Ошибка обновления пользователя');
+      this.setLoading(false);
+      throw err;
+    }
+  }
+
+  async deleteUser(userId) {
+    this.setLoading(true);
+    this.setError(null);
+    try {
+      await this.apiClient.delete(`/users/delete/${userId}`);
+      this.setLoading(false);
+      return true;
+    } catch (err) {
+      this.setError(err.response?.data?.message || 'Ошибка удаления пользователя');
+      this.setLoading(false);
+      throw err;
     }
   }
 }

@@ -15,40 +15,50 @@ import Register from './components/auth/Register';
 import Profile from './components/auth/Profile';
 import NotFound from './components/pages/NotFound';
 import ProtectedRoute from './components/auth/ProtectedRoute';
-import AdminPanel from './components/admin/AdminPanel'; // Import AdminPanel
+import ProfileEdit from './components/auth/ProfileEdit';
+import AdminPanel from './components/admin/AdminPanel';
+import AdminUsers from './components/admin/AdminUsers';
+import AdminArtworks from './components/admin/AdminArtworks';
+import AdminArtists from './components/admin/AdminArtists';
+import AdminExhibitions from './components/admin/AdminExhibitions';
+import AdminDashboard from './components/admin/AdminDashboard';
 
 const App = observer(() => {
   return (
     <Router>
-      <Navbar />
-      <main className="main-content">
-        <Routes>
-          <Route path="/" element={<Home />} />
-          <Route path="/artworks" element={<ArtworkList />} />
-          <Route path="/artists" element={<ArtistList />} />
-          <Route path="/exhibitions" element={<ExhibitionList />} />
-          <Route path="/login" element={<Login />} />
-          <Route path="/register" element={<Register />} />
-          <Route 
-            path="/profile" 
-            element={
+      <div className="d-flex flex-column min-vh-100">
+        <Navbar />
+        <main className="flex-grow-1">
+          <Routes>
+            <Route path="/" element={<Home />} />
+            <Route path="/artworks" element={<ArtworkList />} />
+            <Route path="/artists" element={<ArtistList />} />
+            <Route path="/exhibitions" element={<ExhibitionList />} />
+            <Route path="/login" element={<Login />} />
+            <Route path="/register" element={<Register />} />
+            <Route path="/profile" element={
               <ProtectedRoute>
                 <Profile />
               </ProtectedRoute>
-            } 
-          />
-          <Route 
-            path="/admin"
-            element={
+            } />
+            <Route path="/profile/edit" element={
               <ProtectedRoute>
+                <ProfileEdit />
+              </ProtectedRoute>
+            } />
+
+            {/* Маршруты админ-панели */}
+            <Route path="/admin/*" element={
+              <ProtectedRoute adminOnly={true}>
                 <AdminPanel />
               </ProtectedRoute>
-            }
-          />
-          <Route path="*" element={<NotFound />} />
-        </Routes>
-      </main>
-      <Footer />
+            } />
+
+            <Route path="*" element={<NotFound />} />
+          </Routes>
+        </main>
+        <Footer />
+      </div>
     </Router>
   );
 });
